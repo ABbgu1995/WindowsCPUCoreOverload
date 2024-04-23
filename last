@@ -1,0 +1,110 @@
+#include <stdio.h>
+#include <math.h>
+#include <windows.h>
+#include <process.h>
+#include <time.h>
+
+// 13
+#define NUM_ITERATIONS 1000000
+#define NUM_CORES 13
+#define INTENSE_LOOP 99999999
+#define OVERLOAD_INTERVAL 0.07
+// Use an event object for signaling threads to exit
+HANDLE exitEvent;
+
+// Function to generate a random number
+int generate_random_number(int min, int max) {
+    return rand() % (max - min + 1) + min;
+}
+
+// Function to simulate CPU-intensive task
+void consume_cpu() {
+    while (WaitForSingleObject(exitEvent, 0) == WAIT_TIMEOUT) {
+        double result = 0;
+
+        int random_number2 = generate_random_number(999999, 999999999);
+        int random_number3 = generate_random_number(999999, 99999999999);
+
+        //2147483647
+        //99999999999
+        for (int i = 0; i < INTENSE_LOOP; i++) {
+            result += log((double)random_number2) * pow(i, 2)* log((double)random_number3);
+        }
+    }
+}
+
+// Function to wrap the function pointer for _beginthread
+void wrapper_function(void* func_ptr) {
+    void (*func)(void) = func_ptr;
+    func();
+}
+
+int main() {
+    srand((unsigned int)time(NULL));
+
+    exitEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+    for (int i = 1; i < NUM_ITERATIONS; i++) {
+        HANDLE threads[NUM_CORES];
+
+        // Measure time before starting threads (Line 1)
+        DWORD start_time = GetTickCount();
+
+        // Line 1
+        for (int core = 0; core < NUM_CORES; core++) {
+            threads[core] = (HANDLE)_beginthread(wrapper_function, 0, consume_cpu);
+        }
+
+//
+//        O:0.8 S:1 N:50V
+//        O:0.8 S:1.5 N:50V
+//        O:0.8 S:0.8 N:50V
+
+
+//        O:0.7 S:0.7 N:50
+//        O:0.5 S:0.5 N:50
+//        O:0.3 S:0.3 N:50
+//        O:0.1 S:0.1 N:50
+//        O:0.9 S:2 N:50V
+//        O:4 S:4 N:50
+//        O:0.7 S:0.7 N:50
+
+        // Line 2
+        Sleep(OVERLOAD_INTERVAL);
+
+
+        // Measure time after starting threads (Line 2)
+
+        // Line 3
+        SetEvent(exitEvent);
+
+        // Line 4
+
+        WaitForMultipleObjects(NUM_CORES, threads, TRUE, INFINITE);
+
+        for (int core = 0; core < NUM_CORES; core++) {
+            CloseHandle(threads[core]);
+        }
+
+        // Line 5
+        Sleep(OVERLOAD_INTERVAL);
+
+        ResetEvent(exitEvent);
+    }
+
+    CloseHandle(exitEvent);
+
+    return 0;
+}
+//void consume_cpu() {
+//    while (WaitForSingleObject(exitEvent, 0) == WAIT_TIMEOUT) {
+//        double result = 0;
+//
+//        int random_number1 = generate_random_number(999999, 999999999);
+//        int random_number2 = generate_random_number(999999, 999999999);
+//        int random_number3 = generate_random_number(999999, 9999999999999);
+//
+//        for (int i = 0; i < 9999; i++) {
+//            result += log((double)random_number2) * pow(i, 2)* log((double)random_number3);
+//        }
+//    }

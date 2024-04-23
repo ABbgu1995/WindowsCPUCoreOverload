@@ -1,0 +1,79 @@
+#include <stdio.h>
+#include <math.h>
+#include <windows.h>
+#include <process.h>
+#include <time.h>
+
+#define NUM_ITERATIONS 10000
+#define NUM_CORES 16
+
+volatile int stop_threads = 0;
+
+// Function to generate a random number
+int generate_random_number(int min, int max) {
+    return rand() % (max - min + 1) + min;
+}
+
+// Function to simulate CPU-intensive task
+void consume_cpu() {
+    while (!stop_threads) {
+        double result = 0;
+
+        int random_number1 = generate_random_number(999999, 999999999);
+        int random_number2 = generate_random_number(999999, 999999999);
+        int random_number3 = generate_random_number(999999, 9999999999999);
+
+        for (int i = 0; i < 9999; i++) {
+            result += log((double)random_number2) * pow(i, 2);
+
+        }
+    }
+}
+
+// Function to wrap the function pointer for _beginthread
+void wrapper_function(void* func_ptr) {
+    void (*func)(void) = func_ptr;
+    func();
+}
+
+// Function to get current time in milliseconds using clock_gettime
+unsigned long long get_current_time() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000ULL + ts.tv_nsec / 1000000ULL;
+}
+
+int main() {
+    srand((unsigned int)time(NULL));
+
+
+    for (int i = 1; i < NUM_ITERATIONS; i++) {
+        HANDLE threads[NUM_CORES];
+
+        // Line 1
+        for (int core = 0; core < NUM_CORES; core++) {
+            threads[core] = (HANDLE)_beginthread(wrapper_function, 0, consume_cpu);
+        }
+
+        // Line 2
+
+        Sleep(300);
+
+
+        // Line 3
+        stop_threads = 1;
+
+        // Line 4
+
+        for (int core = 0; core < NUM_CORES; core++) {
+            WaitForSingleObject(threads[core], INFINITE);
+            CloseHandle(threads[core]);
+        }
+
+
+        // Line 5
+        Sleep(300);
+
+        stop_threads = 0;
+    }
+}

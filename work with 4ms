@@ -1,0 +1,97 @@
+#include <stdio.h>
+#include <math.h>
+#include <windows.h>
+#include <process.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define NUM_ITERATIONS 50
+#define NUM_CORES 16
+
+volatile int stop_threads = 0;
+
+// Function to generate a random number
+int generate_random_number(int min, int max) {
+    return rand() % (max - min + 1) + min;
+}
+
+// Function to simulate CPU-intensive task
+void consume_cpu() {
+    while (!stop_threads) {
+        double result = 0;
+
+        int random_number1 = generate_random_number(999999, 999999999);
+        int random_number2 = generate_random_number(999999, 999999999);
+        int random_number3 = generate_random_number(999999, 9999999999999);
+
+        for (int i = 0; i < random_number3; i++) {
+            result += sqrt((double)random_number1) * log((double)random_number2) * pow(i, 2);
+        }
+    }
+}
+
+// Function to wrap the function pointer for _beginthread
+void wrapper_function(void* func_ptr) {
+    void (*func)(void) = func_ptr;
+    func();
+}
+
+int main() {
+    srand((unsigned int)time(NULL));
+
+    DWORD line1_to_line2[NUM_ITERATIONS];
+    DWORD line3_to_line5[NUM_ITERATIONS];
+
+    for (int i = 1; i < NUM_ITERATIONS; i++) {
+        HANDLE threads[NUM_CORES];
+
+        // Line 1
+
+        for (int core = 0; core < NUM_CORES; core++) {
+            threads[core] = (HANDLE)_beginthread(wrapper_function, 0, consume_cpu);
+        }
+        // Line 2
+        DWORD start1 = GetTickCount();
+        Sleep(10);
+        DWORD end2 = GetTickCount();
+        line1_to_line2[i] = end2 - start1;
+
+        // Line 3
+        stop_threads = 1;
+        // Line 4
+        DWORD start4 = GetTickCount();
+        for (int core = 0; core < NUM_CORES; core++) {
+            WaitForSingleObject(threads[core], INFINITE);
+            CloseHandle(threads[core]);
+        }
+        DWORD end4 = GetTickCount();
+
+        // Line 5
+        Sleep(4);
+        DWORD end5 = GetTickCount();
+
+        line3_to_line5[i] = end5 - start4;
+
+        stop_threads = 0;
+    }
+    DWORD start1 = GetTickCount();
+    Sleep(10);
+    DWORD end2 = GetTickCount();
+    printf("%u ", (end2 - start1));
+
+
+    printf("Time between Line 1 and Line 2: ");
+    for (int i = 1; i < NUM_ITERATIONS; i++) {
+        printf("%u ", line1_to_line2[i]);
+    }
+    printf("\n");
+
+    printf("Time between Line 3 and Line 5: ");
+    for (int i = 1; i < NUM_ITERATIONS; i++) {
+        printf("%u ", line3_to_line5[i]);
+    }
+    printf("\n");
+
+    printf("CPU core overloading completed.");
+    return 0;
+}

@@ -1,0 +1,88 @@
+#include <stdio.h>
+#include <math.h>
+#include <windows.h>
+#include <process.h>
+#include <time.h>
+
+// 13
+#define NUM_ITERATIONS 100
+#define NUM_CORES 17
+// 17 13 15 10
+// Use an event object for signaling threads to exit
+HANDLE exitEvent;
+
+// Function to generate a random number
+int generate_random_number(int min, int max) {
+    return rand() % (max - min + 1) + min;
+}
+
+// Function to simulate CPU-intensive task
+void consume_cpu() {
+    while (WaitForSingleObject(exitEvent, 0) == WAIT_TIMEOUT) {
+        double result = 0;
+
+        int random_number2 = generate_random_number(999999, 999999999);
+        int random_number3 = generate_random_number(999999, 999999999);
+
+        for (int i = 0; i < 99999999999; i++) {
+            result += log((double)random_number2) * pow(i, 2)* log((double)random_number3);
+        }
+    }
+}
+
+// Function to wrap the function pointer for _beginthread
+void wrapper_function(void* func_ptr) {
+    void (*func)(void) = func_ptr;
+    func();
+}
+
+int main() {
+        exitEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+        for (int i = 1; i < NUM_ITERATIONS; i++) {
+            HANDLE threads[NUM_CORES];
+
+            for (int core = 0; core < NUM_CORES; core++) {
+                threads[core] = (HANDLE) _beginthread(wrapper_function, 0, consume_cpu);
+            }
+
+            // Line 2
+            Sleep(0.5);
+
+
+            // Measure time after starting threads (Line 2)
+
+            // Line 3
+            SetEvent(exitEvent);
+
+            // Line 4
+
+            WaitForMultipleObjects(NUM_CORES, threads, TRUE, INFINITE);
+
+            for (int core = 0; core < NUM_CORES; core++) {
+                CloseHandle(threads[core]);
+            }
+
+            // Line 5
+            Sleep(0.7);
+
+            ResetEvent(exitEvent);
+        }
+
+        CloseHandle(exitEvent);
+
+
+
+    return 0;
+}
+//void consume_cpu() {
+//    while (WaitForSingleObject(exitEvent, 0) == WAIT_TIMEOUT) {
+//        double result = 0;
+//
+//        int random_number1 = generate_random_number(999999, 999999999);
+//        int random_number2 = generate_random_number(999999, 999999999);
+//        int random_number3 = generate_random_number(999999, 9999999999999);
+//
+//        for (int i = 0; i < 9999; i++) {
+//            result += log((double)random_number2) * pow(i, 2)* log((double)random_number3);
+//        }
+//    }
